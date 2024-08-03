@@ -1,9 +1,9 @@
-import Maps from "./components/Maps";
+import Home from "./pages/Home";
 
 function App() {
   return (
     <>
-      <Maps />
+      <Home />
     </>
   );
 }

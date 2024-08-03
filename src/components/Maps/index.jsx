@@ -1,28 +1,29 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import XYZ from "ol/source/XYZ";
-import { fromLonLat, toLonLat } from "ol/proj";
+import { fromLonLat } from "ol/proj";
 import Overlay from "ol/Overlay";
-import { LineString } from "ol/geom";
-import { Feature } from "ol";
-import { Style, Stroke } from "ol/style";
-import VectorLayer from "ol/layer/Vector";
-import VectorSource from "ol/source/Vector";
-import Sidebar from "../Sidebar";
 import { FaBars, FaMapMarkerAlt } from "react-icons/fa";
-import axios from "axios";
-import polyline from "polyline";
+import { IoLocation } from "react-icons/io5";
+import { get as getProjection } from "ol/proj";
 
-const MapComponent = () => {
-  const mapRef = useRef(null);
-  const userMarkerRef = useRef(null); // Blue marker for user's location
-  const startMarkerRef = useRef(null); // Start location marker
-  const endMarkerRef = useRef(null); // End location marker
-  const [map, setMap] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [routeLayer, setRouteLayer] = useState(null);
+const Maps = (props) => {
+  const {
+    setSidebarOpen,
+    sidebarOpen,
+    userMarkerRef,
+    startMarkerRef,
+    endMarkerRef,
+    map,
+    setMap,
+    mapRef,
+    handleClearFeatures,
+    startMarkerVisible,
+    endMarkerVisible,
+    variant,
+  } = props;
 
   useEffect(() => {
     // Initialize map once
@@ -31,13 +32,17 @@ const MapComponent = () => {
       layers: [
         new TileLayer({
           source: new XYZ({
-            url: "https://{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            // url: "https://{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            url: `https://api.maptiler.com/maps/${variant}/{z}/{x}/{y}.${
+              variant !== "satellite/256" ? "png" : "jpg"
+            }?key=${import.meta.env.VITE_APP_MAPTILER_API_KEY}`,
           }),
         }),
       ],
       view: new View({
         center: fromLonLat([0, 0]),
         zoom: 2,
+        extent: getProjection("EPSG:3857").getExtent(), // Constrain panning
       }),
       controls: [], // Disable all default controls
     });
@@ -50,7 +55,7 @@ const MapComponent = () => {
         mapInstance.setTarget(null);
       }
     };
-  }, []);
+  }, [variant]);
 
   useEffect(() => {
     if (map) {
@@ -91,104 +96,6 @@ const MapComponent = () => {
     };
   }, []);
 
-  const fetchRoute = async (from, to) => {
-    try {
-      const response = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full`
-      );
-      const data = await response.json();
-
-      // Debug: Log the API response
-      console.log("Route data:", data);
-
-      // Check if route data is available
-      if (data.routes && data.routes.length > 0) {
-        const encodedPolyline = data.routes[0].geometry;
-        const decodedCoordinates = polyline.decode(encodedPolyline);
-        return decodedCoordinates;
-      } else {
-        console.error("No route found or route data is invalid");
-        return null;
-      }
-    } catch (error) {
-      console.error("Error fetching route", error);
-      return null;
-    }
-  };
-
-  const handleLocationSelect = async ({ from, to }) => {
-    const fromCoords = fromLonLat([from.lon, from.lat]);
-    const toCoords = fromLonLat([to.lon, to.lat]);
-
-    // Add start marker
-    const startMarkerElement = startMarkerRef.current;
-    const startMarkerOverlay = new Overlay({
-      position: fromCoords,
-      positioning: "center-center",
-      element: startMarkerElement,
-      stopEvent: false,
-    });
-
-    map.addOverlay(startMarkerOverlay);
-    startMarkerElement.style.display = "block";
-
-    // Add end marker
-    const endMarkerElement = endMarkerRef.current;
-    const endMarkerOverlay = new Overlay({
-      position: toCoords,
-      positioning: "center-center",
-      element: endMarkerElement,
-      stopEvent: false,
-    });
-
-    map.addOverlay(endMarkerOverlay);
-    endMarkerElement.style.display = "block";
-
-    // Remove existing route layer if it exists
-    if (routeLayer) {
-      map.removeLayer(routeLayer);
-    }
-
-    // Fetch and add route
-    const routeCoordinates = await fetchRoute(from, to);
-    if (routeCoordinates) {
-      const coordinates = routeCoordinates.map((coord) =>
-        fromLonLat([coord[1], coord[0]])
-      );
-      const routeLine = new LineString(coordinates);
-      const routeFeature = new Feature({
-        geometry: routeLine,
-      });
-
-      routeFeature.setStyle(
-        new Style({
-          stroke: new Stroke({
-            color: "#FF0000",
-            width: 4,
-          }),
-        })
-      );
-
-      const vectorSource = new VectorSource({
-        features: [routeFeature],
-      });
-      const vectorLayer = new VectorLayer({
-        source: vectorSource,
-      });
-
-      map.addLayer(vectorLayer);
-      setRouteLayer(vectorLayer);
-
-      // Adjust view to fit the route
-      map.getView().fit(routeLine.getExtent(), {
-        padding: [20, 20, 20, 20],
-        duration: 2000,
-      });
-    } else {
-      console.error("Failed to get route coordinates");
-    }
-  };
-
   return (
     <div className="relative w-full h-screen">
       {!sidebarOpen && (
@@ -199,12 +106,14 @@ const MapComponent = () => {
           <FaBars />
         </button>
       )}
-
-      <Sidebar
-        onLocationSelect={handleLocationSelect}
-        onClose={() => setSidebarOpen(false)}
-        isOpen={sidebarOpen}
-      />
+      {(startMarkerVisible || endMarkerVisible) && (
+        <button
+          onClick={handleClearFeatures}
+          className="absolute top-4 right-4 z-20 p-2 bg-white text-black rounded"
+        >
+          Clear Features
+        </button>
+      )}
       <div ref={mapRef} className="w-full h-full" />
       <div
         ref={userMarkerRef}
@@ -212,7 +121,7 @@ const MapComponent = () => {
       />
       <div
         ref={startMarkerRef}
-        className="start-marker hidden absolute w-8 h-8 text-green-500"
+        className="start-marker hidden absolute w-8 h-8 text-yellow-500"
         style={{ transform: "translate(-50%, -50%)" }}
       >
         <FaMapMarkerAlt size={32} />
@@ -222,10 +131,10 @@ const MapComponent = () => {
         className="end-marker hidden absolute w-8 h-8 text-red-500"
         style={{ transform: "translate(-50%, -50%)" }}
       >
-        <FaMapMarkerAlt size={32} />
+        <IoLocation size={32} />
       </div>
     </div>
   );
 };
 
-export default MapComponent;
+export default Maps;
