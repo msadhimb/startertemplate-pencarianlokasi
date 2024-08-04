@@ -8,6 +8,7 @@ import Overlay from "ol/Overlay";
 import { FaBars, FaMapMarkerAlt } from "react-icons/fa";
 import { IoLocation } from "react-icons/io5";
 import { get as getProjection } from "ol/proj";
+import { IoMdCloseCircle } from "react-icons/io";
 
 const Maps = (props) => {
   const {
@@ -79,6 +80,12 @@ const Maps = (props) => {
         map.getView().animate({ center: coords, zoom: 10, duration: 2000 });
       });
     }
+
+    return () => {
+      if (map) {
+        map.getOverlays().clear();
+      }
+    };
   }, [map]);
 
   useEffect(() => {
@@ -109,9 +116,9 @@ const Maps = (props) => {
       {(startMarkerVisible || endMarkerVisible) && (
         <button
           onClick={handleClearFeatures}
-          className="absolute top-4 right-4 z-20 p-2 bg-white text-black rounded"
+          className="absolute top-4 right-4 z-20 p-1 bg-white text-black rounded-full"
         >
-          Clear Features
+          <IoMdCloseCircle size={25} />
         </button>
       )}
       <div ref={mapRef} className="w-full h-full" />

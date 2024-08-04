@@ -9,12 +9,10 @@ import { Controller, useForm } from "react-hook-form";
 
 const Sidebar = ({
   onFindRoute,
-  onFindLocation,
   onClose,
   isOpen,
   control,
   watch,
-  reset,
   setVariant,
   variant,
 }) => {
@@ -46,13 +44,11 @@ const Sidebar = ({
   };
 
   const handleChangeFrom = (selectedOption) => {
-    // setFromLocation(selectedOption);
     const [lat, lon] = selectedOption.value.split(",");
     setLonLatFrom({ lat, lon });
   };
 
   const handleChangeTo = (selectedOption) => {
-    // setToLocation(selectedOption);
     const [lat, lon] = selectedOption.value.split(",");
     setLonLatTo({ lat, lon });
   };
